@@ -1,10 +1,19 @@
-import { createApp } from 'vue';
-import App from './App.vue';
+import { createApp } from 'vue'
+import { createRouter, createWebHistory } from 'vue-router'
+import App from './App.vue'
+import TaskList from './components/TaskList.vue'
+import LoginForm from './components/LoginForm.vue'
 
-import './assets/main.css'; // Optional: add your global styles here
-import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap/dist/css/bootstrap.min.css'
 
+const routes = [
+  { path: '/', component: TaskList },
+  { path: '/login', component: LoginForm },
+]
 
-const app = createApp(App);
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
 
-app.mount('#app');
+createApp(App).use(router).mount('#app')

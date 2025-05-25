@@ -2,6 +2,36 @@
   <div class="container py-4">
     <h2 class="mb-4">Task Manager</h2>
 
+    <!-- ✅ Create New Task Form -->
+    <div class="card mb-4">
+      <div class="card-header">Create New Task</div>
+      <div class="card-body">
+        <form @submit.prevent="createTask">
+          <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input v-model="newTask.title" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea v-model="newTask.description" class="form-control"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select v-model="newTask.status" class="form-select">
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Due Date</label>
+            <input v-model="newTask.due_date" type="date" class="form-control" />
+          </div>
+          <button type="submit" class="btn btn-success">Create Task</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Edit Task Form -->
     <div v-if="editingTask" class="card mb-4">
       <div class="card-header">Edit Task</div>
@@ -67,51 +97,107 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import api from '../api';
-import TaskItem from './TaskItem.vue';
+import { ref, onMounted } from 'vue'
+import api from '../api'
+import TaskItem from './TaskItem.vue'
 
-const tasks = ref([]);
-const meta = ref({});
-const links = ref({});
-const editingTask = ref(null);
-const userId = 1;
-const perPage = 5;
+const tasks = ref([])
+const meta = ref({})
+const links = ref({})
+const editingTask = ref(null)
+const newTask = ref({
+  title: '',
+  description: '',
+  status: 'pending',
+  due_date: '',
+})
+const currentUser = ref(null)
+const perPage = 5
+
+const fetchUser = async () => {
+  try {
+    const response = await api.get('/user', {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    currentUser.value = response.data
+    fetchTasks()
+  } catch (err) {
+    console.error('Error fetching user:', err)
+  }
+}
 
 const fetchTasks = async (page = 1) => {
   try {
-    const response = await api.get(`/users/${userId}/tasks?page=${page}&per_page=${perPage}`);
-    tasks.value = response.data.data;
-    meta.value = response.data.meta;
-    links.value = response.data.links;
+    if (!currentUser.value) return
+    const response = await api.get(
+      `/users/${currentUser.value.id}/tasks?page=${page}&per_page=${perPage}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      },
+    )
+    tasks.value = response.data.data
+    meta.value = response.data.meta
+    links.value = response.data.links
   } catch (error) {
-    console.error('Fetch error:', error);
+    console.error('Fetch error:', error)
   }
-};
+}
 
-const changePage = (page) => {
-  if (page >= 1 && page <= meta.value.last_page) {
-    fetchTasks(page);
+const createTask = async () => {
+  try {
+    console.log('Submitting new task:', newTask.value)
+
+    await api.post(`/users/${currentUser.value.id}/tasks`, newTask.value, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    
+    newTask.value = {
+      title: '',
+      description: '',
+      status: 'pending',
+      due_date: '',
+    }
+    fetchTasks(meta.value.current_page)
+  } catch (err) {
+    console.error('Create task error:', err)
   }
-};
-
-const editTask = (task) => {
-  editingTask.value = { ...task };
-};
-
-const cancelEdit = () => {
-  editingTask.value = null;
-};
+}
 
 const updateTask = async () => {
   try {
-    await api.put(`/tasks/${editingTask.value.id}`, editingTask.value);
-    cancelEdit();
-    fetchTasks(meta.value.current_page);
+    await api.put(`/tasks/${editingTask.value.id}`, editingTask.value, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    cancelEdit()
+    fetchTasks(meta.value.current_page)
   } catch (err) {
-    console.error('Update failed:', err);
+    console.error('Update failed:', err)
   }
-};
+}
 
-onMounted(() => fetchTasks());
+const editTask = (task) => {
+  editingTask.value = { ...task }
+}
+
+const cancelEdit = () => {
+  editingTask.value = null
+}
+
+const changePage = (page) => {
+  if (page >= 1 && page <= meta.value.last_page) {
+    fetchTasks(page)
+  }
+}
+
+onMounted(() => {
+  fetchUser()
+})
 </script>
